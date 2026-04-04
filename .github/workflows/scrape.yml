@@ -1,10 +1,12 @@
 name: Daily Interview Scraper
 
 on:
+  push:
+    branches:
+      - main
   schedule:
-    # Run daily at 01:00 UTC
     - cron: '0 1 * * *'
-  workflow_dispatch:   # Allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   scrape-and-process:
