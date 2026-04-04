@@ -10,7 +10,7 @@ on:
 
 jobs:
   scrape-and-process:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
 
     env:
