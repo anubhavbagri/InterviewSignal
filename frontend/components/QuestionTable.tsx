@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, Fragment } from "react";
 import { Question } from "@/lib/types";
 import { TypeBadge } from "@/components/TypeBadge";
 import {
@@ -111,9 +111,8 @@ export function QuestionTable({
             {questions.map((q) => {
               const isOpen = expanded.has(q._id);
               return (
-                <>
+                <Fragment key={q._id}>
                   <TableRow
-                    key={q._id}
                     onClick={() => toggle(q._id)}
                     className={cn(
                       "cursor-pointer border-border/40 transition-colors group",
@@ -134,7 +133,7 @@ export function QuestionTable({
                     </TableCell>
 
                     {/* Question text */}
-                    <TableCell className="font-medium text-foreground/90 py-4">
+                    <TableCell className="font-medium text-foreground/90 py-4 whitespace-normal min-w-[200px]">
                       <span className="line-clamp-2 leading-snug">
                         {q.question}
                       </span>
@@ -248,7 +247,7 @@ export function QuestionTable({
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </TableBody>

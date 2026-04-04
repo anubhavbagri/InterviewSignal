@@ -77,7 +77,7 @@ There are **two** `.env` files — one per subsystem. There is no root-level env
 | File | Used by | Variables |
 |------|---------|----------|
 | `frontend/.env.local` | Next.js | `MONGODB_URI`, `MONGODB_DB_NAME` |
-| `scraper/.env` | Python scripts | `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY` |
+| `scraper/.env` | Python scripts | `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY`, `AI_MODEL` |
 
 ### 1. MongoDB Atlas
 
@@ -108,7 +108,7 @@ pip install -r requirements.txt
 playwright install chromium
 
 cp .env.example .env
-# Fill in MONGODB_URI and OPENAI_API_KEY in .env
+# Fill in MONGODB_URI, OPENAI_API_KEY, and AI_MODEL in .env
 
 # Run scraper (fetches posts from LeetCode)
 python scraper.py
@@ -148,6 +148,7 @@ Add these secrets to your GitHub repo (`Settings → Secrets → Actions`):
 | `MONGODB_URI` | Your Atlas connection string |
 | `MONGODB_DB_NAME` | `interviewsignal` |
 | `OPENAI_API_KEY` | Your OpenAI key |
+| `AI_MODEL` | The LLM ID to use (e.g. `gpt-4o-mini`) |
 
 The workflow (`.github/workflows/scrape.yml`) runs daily at 01:00 UTC. You can also trigger it manually via the GitHub Actions UI.
 
