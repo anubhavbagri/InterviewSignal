@@ -1,0 +1,52 @@
+name: Daily Interview Scraper
+
+on:
+  schedule:
+    # Run daily at 01:00 UTC
+    - cron: '0 1 * * *'
+  workflow_dispatch:   # Allow manual trigger from GitHub UI
+
+jobs:
+  scrape-and-process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB_NAME: ${{ secrets.MONGODB_DB_NAME }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      AI_MODEL: ${{ secrets.AI_MODEL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r scraper/requirements.txt
+
+      - name: Install Playwright browsers
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Run scraper
+        run: |
+          python3 scraper/scraper.py
+        continue-on-error: false
+
+      - name: Run LLM processor
+        run: |
+          python3 scraper/processor.py
+        continue-on-error: false
+
+      - name: Report status
+        if: always()
+        run: echo "Pipeline completed at $(date -u)"
