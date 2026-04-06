@@ -2,22 +2,22 @@
 
 > Real interview questions from real candidates — not practice problems.
 
-InterviewSignal aggregates interview experience posts from LeetCode Discuss, extracts structured questions using GPT-4o, deduplicates them, and surfaces them via a filterable UI.
+InterviewSignal scrapes interview experience posts from LeetCode Discuss via their internal GraphQL API, extracts structured questions using GPT-4o, deduplicates them, and surfaces them in a searchable, filterable UI.
 
 ---
 
 ## Architecture
 
 ```
-[Playwright Scraper (Python)]
-        ↓  daily cron (GitHub Actions)
+[GraphQL Scraper (Python + requests)]
+        ↓  cron / push to scraper/ (GitHub Actions)
 [MongoDB Atlas — raw_posts]
-        ↓  LLM batch processor
+        ↓  LLM batch processor (OpenAI)
 [MongoDB Atlas — questions]
         ↓
 [Next.js API Routes]
         ↓
-[Frontend UI — /recent-questions]
+[Frontend UI — /recent-questions?company=Amazon]
 ```
 
 ---
@@ -26,33 +26,37 @@ InterviewSignal aggregates interview experience posts from LeetCode Discuss, ext
 
 ```
 InterviewSignal/
-├── frontend/           # Next.js app (App Router + Tailwind + shadcn/ui)
+├── frontend/                          # Next.js app (App Router + Tailwind CSS v4)
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── questions/route.ts   # GET /api/questions
-│   │   │   ├── companies/route.ts   # GET /api/companies
-│   │   │   └── recent/route.ts      # GET /api/recent
+│   │   │   ├── questions/route.ts     # GET /api/questions
+│   │   │   ├── companies/route.ts     # GET /api/companies
+│   │   │   └── stats/route.ts         # GET /api/stats
 │   │   ├── recent-questions/
 │   │   │   ├── page.tsx
 │   │   │   └── RecentQuestionsContent.tsx
+│   │   ├── icon.tsx                   # Dynamic Zap favicon (ImageResponse)
+│   │   ├── not-found.tsx              # 404 page
 │   │   ├── layout.tsx
-│   │   └── page.tsx                 # redirects → /recent-questions
+│   │   └── page.tsx                   # Redirects → /recent-questions
 │   ├── components/
-│   │   ├── FilterBar.tsx
-│   │   ├── QuestionTable.tsx
-│   │   ├── StatsBar.tsx
-│   │   └── TypeBadge.tsx
+│   │   ├── CompanySelector.tsx        # Searchable dropdown
+│   │   ├── QuestionTable.tsx          # Table (desktop) + cards (mobile)
+│   │   ├── QuestionModal.tsx          # Description + links modal
+│   │   └── TypeBadge.tsx              # CODING / DESIGN badge
 │   └── lib/
-│       ├── mongodb.ts               # singleton client
-│       └── types.ts                 # shared TypeScript interfaces
+│       ├── mongodb.ts                 # Singleton MongoClient
+│       ├── types.ts                   # Shared TypeScript interfaces
+│       └── utils.ts
 ├── scraper/
-│   ├── scraper.py                   # Playwright async scraper
-│   ├── processor.py                 # OpenAI LLM batch processor
-│   ├── db.py                        # MongoDB connection + indexes
+│   ├── scraper.py                     # GraphQL HTTP scraper (no browser)
+│   ├── processor.py                   # OpenAI LLM batch processor
+│   ├── db.py                          # MongoDB connection + indexes
+│   ├── .env.example
 │   └── requirements.txt
 └── .github/
     └── workflows/
-        └── scrape.yml               # Daily cron job
+        └── scrape.yml                 # Cron job — only triggers on scraper/ changes
 ```
 
 ---
@@ -75,7 +79,7 @@ InterviewSignal/
 There are **two** `.env` files — one per subsystem. There is no root-level env file.
 
 | File | Used by | Variables |
-|------|---------|----------|
+|------|---------|-----------|
 | `frontend/.env.local` | Next.js | `MONGODB_URI`, `MONGODB_DB_NAME` |
 | `scraper/.env` | Python scripts | `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY`, `AI_MODEL` |
 
@@ -83,8 +87,8 @@ There are **two** `.env` files — one per subsystem. There is no root-level env
 
 1. Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas)
 2. Create a database named `interviewsignal`
-3. Create a DB user and whitelist your IP (or `0.0.0.0/0` for GitHub Actions)
-4. Copy the connection string
+3. Create a DB user and whitelist `0.0.0.0/0` (required for GitHub Actions)
+4. Copy the connection string into both `.env` files
 
 ### 2. Frontend
 
@@ -100,20 +104,21 @@ npm run dev
 
 ### 3. Scraper
 
+No browser installation required — the scraper uses LeetCode's internal GraphQL API over plain HTTP.
+
 ```bash
 cd scraper
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-playwright install chromium
 
 cp .env.example .env
 # Fill in MONGODB_URI, OPENAI_API_KEY, and AI_MODEL in .env
 
-# Run scraper (fetches posts from LeetCode)
+# Step 1: Fetch posts from LeetCode Discuss → raw_posts collection
 python scraper.py
 
-# Run LLM processor (extracts questions via GPT-4o)
+# Step 2: Extract & structure questions via GPT → questions collection
 python processor.py
 ```
 
@@ -123,9 +128,9 @@ python processor.py
 
 | Route | Params | Description |
 |-------|--------|-------------|
-| `GET /api/questions` | `company`, `type`, `page`, `limit` | Paginated question list |
+| `GET /api/questions` | `company`, `page`, `limit` | Paginated question list |
 | `GET /api/companies` | — | Distinct company list |
-| `GET /api/recent` | `limit` | Latest questions |
+| `GET /api/stats` | — | Total question + company counts |
 
 ---
 
@@ -134,7 +139,7 @@ python processor.py
 ### Frontend → Vercel
 
 1. Push the repo to GitHub
-2. Import the `frontend/` folder at [vercel.com](https://vercel.com)
+2. Import the `frontend/` folder at [vercel.com](https://vercel.com) (set root directory to `frontend`)
 3. Add environment variables:
    - `MONGODB_URI`
    - `MONGODB_DB_NAME` = `interviewsignal`
@@ -148,55 +153,70 @@ Add these secrets to your GitHub repo (`Settings → Secrets → Actions`):
 | `MONGODB_URI` | Your Atlas connection string |
 | `MONGODB_DB_NAME` | `interviewsignal` |
 | `OPENAI_API_KEY` | Your OpenAI key |
-| `AI_MODEL` | The LLM ID to use (e.g. `gpt-4o-mini`) |
+| `AI_MODEL` | e.g. `gpt-4o-mini` |
 
-The workflow (`.github/workflows/scrape.yml`) runs daily at 01:00 UTC. You can also trigger it manually via the GitHub Actions UI.
+The workflow runs on two schedules with a randomized delay (up to 30 min) to avoid predictable scraping patterns:
+
+| Schedule | Time |
+|----------|------|
+| Daily | ~02:00 UTC |
+| Mid-week refresh | ~14:00 UTC every Wednesday |
+
+> **Note**: The workflow only triggers on push when files inside `scraper/` or the workflow file itself change. Frontend-only commits do not start the scraper.
 
 ---
 
 ## Deduplication
 
-Questions are deduplicated using a SHA-256 hash of the normalized question text:
+Three layers prevent re-processing and duplicate storage:
+
+1. **Scraper** — `raw_posts.post_url` has a unique index; scraper skips URLs already in the collection.
+2. **Processor** — queries `{ processed: false }` so each post is sent to the LLM exactly once. After processing (success **or** permanent failure), the post is marked `processed: true`.
+3. **Questions** — `questions.question_hash` (SHA-256 of the normalized title) has a unique index; identical questions from different posts are silently dropped.
 
 ```
-question_hash = sha256(lowercase(strip(remove_punctuation(question))))
+question_hash = sha256(lowercase(strip(remove_punctuation(title))))
 ```
-
-A unique index on `question_hash` in MongoDB prevents any duplicates from being stored, even if the same question appears in multiple interview posts.
 
 ---
 
 ## MongoDB Schema
 
 ### `raw_posts`
+
 | Field | Type | Notes |
 |-------|------|-------|
 | `post_url` | string | unique index |
 | `title` | string | |
-| `company` | string \| null | inferred from text |
+| `company` | string \| null | inferred from title/content |
 | `content` | string | full post body |
 | `posted_at` | string | |
-| `processed` | boolean | false until LLM processed |
+| `processed` | boolean | `false` until LLM runs |
+| `llm_failed` | boolean | set if all OpenAI retries fail |
 | `created_at` | datetime | |
 
 ### `questions`
+
 | Field | Type | Notes |
 |-------|------|-------|
-| `company` | string \| null | |
-| `question` | string | normalized |
-| `type` | DSA \| SYSTEM_DESIGN \| BEHAVIORAL | |
+| `company` | string \| null | normalized — no region suffix |
+| `title` | string | canonical problem name |
+| `description` | string \| null | 2–3 sentence technical description |
+| `type` | `CODING` \| `DESIGN` | |
 | `tags` | string[] | |
-| `difficulty` | easy \| medium \| hard \| unknown | |
-| `source_post_url` | string | link back to LeetCode post |
+| `difficulty` | `easy` \| `medium` \| `hard` \| `unknown` | |
+| `problem_link` | string \| null | LeetCode / GFG / HelloInterview / GitHub |
+| `source_post_url` | string | link to original LeetCode Discuss post |
 | `question_hash` | string | unique index |
+| `posted_at` | string \| null | |
 | `created_at` | datetime | |
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui
+- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS v4
 - **Database**: MongoDB Atlas
-- **Scraper**: Python 3.11, Playwright (async)
-- **AI**: OpenAI GPT-4o
+- **Scraper**: Python 3.11, `requests` (GraphQL over HTTP — no browser)
+- **AI**: OpenAI GPT-4o / GPT-4o-mini
 - **Deployment**: Vercel (frontend), GitHub Actions (scraper cron)

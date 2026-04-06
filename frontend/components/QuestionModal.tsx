@@ -11,7 +11,7 @@ interface QuestionModalProps {
 export function QuestionModal({ question, onClose }: QuestionModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -19,7 +19,7 @@ export function QuestionModal({ question, onClose }: QuestionModalProps) {
 
       {/* Modal card */}
       <div
-        className="relative z-10 w-full max-w-xl rounded-2xl bg-card border border-border/60 shadow-2xl p-6 space-y-5"
+        className="relative z-10 w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl bg-card border border-border/60 shadow-2xl p-5 sm:p-6 space-y-5 max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

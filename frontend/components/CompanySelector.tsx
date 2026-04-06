@@ -50,7 +50,7 @@ export function CompanySelector({ companies, selected, onSelect }: CompanySelect
   };
 
   return (
-    <div ref={ref} className="relative w-64">
+    <div ref={ref} className="relative w-full max-w-sm sm:max-w-none sm:w-72">
       {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
@@ -95,7 +95,7 @@ export function CompanySelector({ companies, selected, onSelect }: CompanySelect
           </div>
 
           {/* List */}
-          <div className="max-h-56 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto">
             {filtered.length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                 No company found

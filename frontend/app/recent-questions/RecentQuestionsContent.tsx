@@ -146,7 +146,7 @@ export function RecentQuestionsContent() {
           </div>
 
           {/* Company selector */}
-          <div className="flex justify-center">
+          <div className="flex justify-center w-full px-2 sm:px-0">
             <CompanySelector
               companies={companies}
               selected={company}
