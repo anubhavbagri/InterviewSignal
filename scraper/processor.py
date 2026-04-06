@@ -70,25 +70,31 @@ For every extracted question, you MUST do the following:
 * Write 2-3 clear sentences describing what the problem asks. Be specific and technical.
 * Example: "Given a data structure that follows LRU eviction policy, implement get and put operations. Both operations must run in O(1) time complexity using a combination of a hashmap and doubly linked list."
 
-### 2d. Problem Link (MANDATORY — always provide one)
-You MUST provide a direct URL to where this problem can be solved or read.
+### 2d. Problem Link (MANDATORY — you MUST provide a URL)
+You MUST always provide a direct URL. null is only acceptable if NO known resource exists anywhere.
 
-Priority order:
-1. **LeetCode** — If the problem exists on LeetCode, provide the exact URL:
-   Format: https://leetcode.com/problems/{slug}/
+For CODING questions, check in this order:
+1. **LeetCode** — https://leetcode.com/problems/{slug}/
    Example: https://leetcode.com/problems/lru-cache/
-   
-2. **GeeksForGeeks** — If not on LeetCode, use GeeksForGeeks:
+2. **GeeksForGeeks** — https://www.geeksforgeeks.org/{problem-slug}/
    Example: https://www.geeksforgeeks.org/lru-cache-implementation/
-   
-3. **System Design Resources** — For design questions not on LeetCode:
-   - Use https://github.com/donnemartin/system-design-primer for system design concepts
-   - Use https://www.geeksforgeeks.org/system-design/ for general system design
-   - Use the most specific and relevant URL you know
+3. **HackerRank** — https://www.hackerrank.com/challenges/{slug}/
+4. **CodeSignal / Codeforces** — use their direct problem URL
 
-* Use your training knowledge to provide the correct, real URL.
-* Do NOT make up URLs. Only provide URLs you are highly confident exist.
-* For very obscure problems with no known online resource, return null.
+For DESIGN questions, check in this order:
+1. **HelloInterview** — https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction
+   Use the most specific page on HelloInterview if available.
+2. **GitHub System Design Primer** — https://github.com/donnemartin/system-design-primer
+   Link to specific section hash if applicable, e.g. #design-a-url-shortener
+3. **GeeksForGeeks System Design** — https://www.geeksforgeeks.org/system-design-{topic}/
+4. **High Scalability blog** — http://highscalability.com/
+5. Any other directly relevant resource you know exists.
+
+Rules:
+* Use your training knowledge to provide a correct, real URL.
+* Only provide URLs you are highly confident actually exist.
+* Do NOT invent URLs. If unsure of the exact slug, use the closest parent page URL.
+* Return null ONLY for completely obscure questions with no online resource anywhere.
 
 ### 2e. Classification
 * "CODING" → algorithms, data structures, implementation, LeetCode-style
@@ -250,14 +256,29 @@ def save_questions(result: dict, source_post_url: str, fallback_company: Optiona
 # ─── Main Processing Loop ─────────────────────────────────────────────────────
 
 def process_batch(posts: list[dict]) -> tuple[int, int]:
-    """Process a batch of raw posts. Returns (questions_saved, posts_processed)."""
+    """
+    Process a batch of raw posts via OpenAI, then save extracted questions.
+
+    Deduplication guarantees:
+    ─ raw_posts.post_url has a unique index → scraper never inserts the same URL twice.
+    ─ run_processor() queries {"processed": False} → posts are never re-sent to OpenAI.
+    ─ After processing (success OR permanent failure), processed=True is set → post leaves queue.
+    ─ questions.question_hash has a unique index → identical questions from different posts are dropped.
+    """
     results = call_openai(posts)
+    raw_col = get_raw_posts_collection()
+
     if results is None:
-        print(f"  ❌ OpenAI failed for batch of {len(posts)} posts.")
+        # OpenAI failed after all retries — mark posts as processed so they don't loop forever
+        print(f"  ❌ OpenAI permanently failed for batch of {len(posts)} posts — marking as processed to avoid infinite retry.")
+        for post in posts:
+            raw_col.update_one(
+                {"_id": post["_id"]},
+                {"$set": {"processed": True, "llm_failed": True}}
+            )
         return 0, 0
 
     total_questions = 0
-    raw_col = get_raw_posts_collection()
 
     for i, post in enumerate(posts):
         result = results[i] if i < len(results) else {}
@@ -267,7 +288,7 @@ def process_batch(posts: list[dict]) -> tuple[int, int]:
         n_saved = save_questions(result, post["post_url"], post.get("company"), post.get("posted_at"))
         total_questions += n_saved
 
-        # Mark post as processed
+        # Mark post as processed — will never be sent to OpenAI again
         raw_col.update_one(
             {"_id": post["_id"]},
             {"$set": {"processed": True}}
@@ -275,6 +296,7 @@ def process_batch(posts: list[dict]) -> tuple[int, int]:
         print(f"  ✅ Post processed: {post['title'][:50]} → {n_saved} questions saved")
 
     return total_questions, len(posts)
+
 
 
 def run_processor():

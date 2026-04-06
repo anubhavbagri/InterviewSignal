@@ -166,7 +166,7 @@ def build_post_doc(node: dict) -> Optional[dict]:
         return None
 
     topic_id = node["id"]
-    post_url  = f"{BASE_URL}/discuss/{topic_id}/"
+    post_url  = f"{BASE_URL}/discuss/post/{topic_id}/"
     company   = extract_company(title) or extract_company(content[:500])
 
     creation_ts = post.get("creationDate")
@@ -209,7 +209,7 @@ def main():
         for edge in edges:
             node     = edge["node"]
             topic_id = node["id"]
-            post_url = f"{BASE_URL}/discuss/{topic_id}/"
+            post_url = f"{BASE_URL}/discuss/post/{topic_id}/"
 
             # Quick existence check before building the full doc
             if col.find_one({"post_url": post_url}, {"_id": 1}):

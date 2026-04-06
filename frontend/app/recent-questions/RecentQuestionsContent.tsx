@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Question } from "@/lib/types";
 import { CompanySelector } from "@/components/CompanySelector";
 import { QuestionTable } from "@/components/QuestionTable";
-import { Zap, Check, Database, Building2, RefreshCw } from "lucide-react";
+import { Zap, Check, Database, Building2 } from "lucide-react";
 
 export function RecentQuestionsContent() {
   const router = useRouter();
@@ -85,16 +85,16 @@ export function RecentQuestionsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Subtle ambient gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-primary/5 rounded-full blur-[140px]" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-violet-500/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="w-full px-6 lg:px-10 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
@@ -105,57 +105,60 @@ export function RecentQuestionsContent() {
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live
+            Updated daily
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-14 space-y-10">
-        {/* ── Hero ── */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
-            Real Interview Questions,<br /><span className="text-primary">Not Practice Problems</span>
-          </h1>
-          <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
-            Curated from real candidate experiences — know{" "}
-            <strong className="text-foreground">exactly what companies are asking right now</strong>
-            , without digging through forums or paying for premium prep tool.
-          </p>
+      {/* ── Main (flex-1 so footer is always at bottom) ── */}
+      <main className="flex-1 flex flex-col">
 
-          {/* Bullet points */}
-          <ul className="mt-6 space-y-2.5 text-left inline-block text-sm sm:text-base">
-            {[
-              "Recently asked coding & system design questions",
-              "Company-specific & sorted by date",
-              "No fluff, no guesswork, no outdated problems",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3 text-muted-foreground">
-                <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                  <Check className="h-3 w-3 text-emerald-400" strokeWidth={2.5} />
-                </span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {/* Hero + company selector */}
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 pt-14 pb-8 space-y-10">
 
-        {/* ── Company Selector ── */}
-        <div className="flex flex-col items-center gap-3">
-          <CompanySelector
-            companies={companies}
-            selected={company}
-            onSelect={handleCompanySelect}
-          />
-          {!company && (
-            <p className="text-muted-foreground text-sm">
-              Please select a company to view recent questions
+          {/* Hero */}
+          <div className="text-center space-y-4 max-w-3xl mx-auto">
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
+              Real Interview Questions,<br />
+              <span className="text-primary">Not Practice Problems</span>
+            </h1>
+            <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
+              Curated from real candidate experiences — know{" "}
+              <strong className="text-foreground">exactly what companies are asking right now</strong>
+              , without digging through forums or paying for premium prep tool.
             </p>
-          )}
+
+            {/* Bullet points */}
+            <ul className="mt-6 space-y-2.5 text-left inline-block text-sm sm:text-base">
+              {[
+                "Recently asked coding & system design questions",
+                "Company-specific & sorted by date",
+                "No fluff, no guesswork, no outdated problems",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3 text-muted-foreground">
+                  <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-emerald-400" strokeWidth={2.5} />
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Company selector */}
+          <div className="flex justify-center">
+            <CompanySelector
+              companies={companies}
+              selected={company}
+              onSelect={handleCompanySelect}
+            />
+          </div>
         </div>
 
-        {/* ── Questions section ── */}
-        {company && (
-          <div className="space-y-4">
+        {/* ── Content area ── */}
+        {company ? (
+          /* Questions table */
+          <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 pb-14 space-y-4">
             {loading && (
               <div className="space-y-2">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -188,38 +191,48 @@ export function RecentQuestionsContent() {
               />
             )}
           </div>
-        )}
-
-        {/* ── Footer stats ── */}
-        {stats && (
-          <div className="border-t border-border/30 pt-10 flex flex-wrap items-center justify-center gap-10 text-center">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Database className="h-5 w-5 text-primary" />
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats.totalQuestions.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Real Interview Questions</p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-emerald-400" />
-              </div>
-              <p className="text-2xl font-bold text-foreground">{stats.totalCompanies.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Companies</p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                <RefreshCw className="h-5 w-5 text-violet-400" />
-              </div>
-              <p className="text-2xl font-bold text-foreground">Daily</p>
-              <p className="text-xs text-muted-foreground">Updated Frequently</p>
-            </div>
+        ) : (
+          /* Placeholder — vertically centered in remaining space */
+          <div className="flex-1 flex items-center justify-center pb-14">
+            <p className="text-muted-foreground text-sm">
+              Please select a company to view recent questions
+            </p>
           </div>
         )}
+
+        {/* Always-visible stats: Total Questions (left) & Companies (right) */}
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 pb-6">
+          <div className="flex items-center justify-between py-4 border-t border-border/30">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Database className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-foreground leading-none">
+                  {stats ? stats.totalQuestions.toLocaleString() : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Total Questions</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div>
+                <p className="text-base font-bold text-foreground leading-none text-right">
+                  {stats ? stats.totalCompanies.toLocaleString() : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 text-right">Companies</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <Building2 className="h-4 w-4 text-emerald-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
       </main>
 
-      <footer className="border-t border-border/30 mt-16">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between text-xs text-muted-foreground">
+      {/* ── Footer — always at bottom ── */}
+      <footer className="border-t border-border/30">
+        <div className="w-full px-6 lg:px-10 h-14 flex items-center justify-between text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} InterviewSignal. All rights reserved.</span>
           <span className="hidden sm:inline">Built with Next.js</span>
         </div>

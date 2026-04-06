@@ -101,24 +101,22 @@ export function QuestionTable({ questions, total, page, hasMore, onPageChange }:
                   {/* Links */}
                   <td className="px-4 py-4">
                     <div className="flex flex-col gap-1.5">
-                      {q.problem_link && (
-                        <a
-                          href={q.problem_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View Problem
-                        </a>
-                      )}
+                      <a
+                        href={q.problem_link ?? q.source_post_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-amber-500/50 text-amber-400 hover:bg-amber-500/10 transition-colors whitespace-nowrap"
+                      >
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        View Problem
+                      </a>
                       <a
                         href={q.source_post_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition-colors whitespace-nowrap"
                       >
-                        <ExternalLink className="h-3 w-3" />
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
                         View Post
                       </a>
                     </div>
