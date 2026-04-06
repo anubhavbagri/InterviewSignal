@@ -12,7 +12,7 @@ on:
 jobs:
   scrape-and-process:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     env:
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -37,7 +37,7 @@ jobs:
 
       - name: Random delay to avoid predictable scraping pattern
         run: |
-          DELAY=$((RANDOM % 7200))
+          DELAY=$((RANDOM % 1800))
           echo "Sleeping for ${DELAY}s before scraping…"
           sleep $DELAY
 
