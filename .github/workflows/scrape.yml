@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'scraper/**'
+      - '.github/workflows/scrape.yml'
   schedule:
     - cron: '0 2 * * *'   # ~2am UTC daily (actual run randomized by upto 30min delay)
     - cron: '0 14 * * 3'  # ~2pm UTC every Wednesday (mid-week refresh)
