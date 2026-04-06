@@ -1,288 +1,180 @@
 "use client";
 
-import React, { useState, Fragment } from "react";
+import { useState } from "react";
 import { Question } from "@/lib/types";
 import { TypeBadge } from "@/components/TypeBadge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  ExternalLink,
-  ChevronDown,
-  ChevronRight,
-  Building2,
-  Tag,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { QuestionModal } from "@/components/QuestionModal";
+import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
 interface QuestionTableProps {
   questions: Question[];
   total: number;
   page: number;
   hasMore: boolean;
-  onPageChange: (p: number) => void;
+  onPageChange: (page: number) => void;
 }
 
-const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: "text-emerald-400",
-  medium: "text-amber-400",
-  hard: "text-red-400",
-  unknown: "text-muted-foreground",
-};
-
-function formatDate(dateStr: string) {
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(new Date(dateStr));
-  } catch {
-    return dateStr;
-  }
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export function QuestionTable({
-  questions,
-  total,
-  page,
-  hasMore,
-  onPageChange,
-}: QuestionTableProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  const toggle = (id: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+export function QuestionTable({ questions, total, page, hasMore, onPageChange }: QuestionTableProps) {
+  const [activeModal, setActiveModal] = useState<Question | null>(null);
+  const totalPages = Math.ceil(total / 10);
+  const pageStart = (page - 1) * 10 + 1;
+  const pageEnd = Math.min(page * 10, total);
 
   if (questions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="text-5xl mb-4">🔍</div>
-        <p className="text-lg font-medium text-foreground/80">
-          No questions found
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Try adjusting your filters or check back after the next scrape run.
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted/40 flex items-center justify-center mb-4">
+          <span className="text-3xl">🔍</span>
+        </div>
+        <p className="text-foreground font-semibold mb-1">No questions found</p>
+        <p className="text-muted-foreground text-sm">
+          No interview questions found for this company yet.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* Table hint */}
+      <p className="text-center text-xs text-muted-foreground mb-3">
+        Click on the description to expand
+      </p>
+
       {/* Table */}
-      <div className="rounded-xl border border-border/50 overflow-hidden bg-card/30 backdrop-blur-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border/50 hover:bg-transparent">
-              <TableHead className="w-8" />
-              <TableHead className="font-semibold text-foreground/80">
-                Question
-              </TableHead>
-              <TableHead className="font-semibold text-foreground/80 w-36">
-                Type
-              </TableHead>
-              <TableHead className="font-semibold text-foreground/80 w-32 hidden sm:table-cell">
-                Company
-              </TableHead>
-              <TableHead className="font-semibold text-foreground/80 w-28 hidden md:table-cell">
-                Difficulty
-              </TableHead>
-              <TableHead className="font-semibold text-foreground/80 w-28 hidden lg:table-cell">
-                Date
-              </TableHead>
-              <TableHead className="w-16 text-right font-semibold text-foreground/80">
-                Source
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {questions.map((q) => {
-              const isOpen = expanded.has(q._id);
-              return (
-                <Fragment key={q._id}>
-                  <TableRow
-                    onClick={() => toggle(q._id)}
-                    className={cn(
-                      "cursor-pointer border-border/40 transition-colors group",
-                      isOpen
-                        ? "bg-primary/5 hover:bg-primary/8"
-                        : "hover:bg-muted/30"
-                    )}
+      <div className="rounded-xl border border-border/50 overflow-hidden bg-card/40">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/20">
+                <th className="text-left text-muted-foreground font-medium px-4 py-3 w-10">#</th>
+                <th className="text-left text-muted-foreground font-medium px-4 py-3 min-w-[180px]">Title</th>
+                <th className="text-left text-muted-foreground font-medium px-4 py-3 min-w-[260px]">Description</th>
+                <th className="text-left text-muted-foreground font-medium px-4 py-3 w-24">Type</th>
+                <th className="text-left text-muted-foreground font-medium px-4 py-3 w-28">Posted At</th>
+                <th className="text-left text-muted-foreground font-medium px-4 py-3 w-36">Link(s)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {questions.map((q, idx) => (
+                <tr
+                  key={q._id}
+                  className="border-b border-border/30 hover:bg-muted/10 transition-colors"
+                >
+                  {/* # */}
+                  <td className="px-4 py-4 text-muted-foreground text-xs">
+                    {pageStart + idx}
+                  </td>
+
+                  {/* Title */}
+                  <td className="px-4 py-4 font-medium text-foreground">
+                    {q.title}
+                  </td>
+
+                  {/* Description — clickable */}
+                  <td
+                    className="px-4 py-4 text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => setActiveModal(q)}
                   >
-                    {/* Expand chevron */}
-                    <TableCell className="pr-0 pl-4">
-                      <span className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        {isOpen ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </span>
-                    </TableCell>
+                    <span className="line-clamp-1">
+                      {q.description || "—"}
+                    </span>
+                  </td>
 
-                    {/* Question text */}
-                    <TableCell className="font-medium text-foreground/90 py-4 whitespace-normal min-w-[200px]">
-                      <span className="line-clamp-2 leading-snug">
-                        {q.question}
-                      </span>
-                    </TableCell>
+                  {/* Type */}
+                  <td className="px-4 py-4">
+                    <TypeBadge type={q.type} />
+                  </td>
 
-                    {/* Type badge */}
-                    <TableCell>
-                      <TypeBadge type={q.type} />
-                    </TableCell>
+                  {/* Posted At */}
+                  <td className="px-4 py-4 text-muted-foreground text-xs whitespace-nowrap">
+                    {formatDate(q.posted_at ?? q.created_at)}
+                  </td>
 
-                    {/* Company */}
-                    <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                      {q.company ?? (
-                        <span className="italic opacity-50">Unknown</span>
+                  {/* Links */}
+                  <td className="px-4 py-4">
+                    <div className="flex flex-col gap-1.5">
+                      {q.problem_link && (
+                        <a
+                          href={q.problem_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View Problem
+                        </a>
                       )}
-                    </TableCell>
-
-                    {/* Difficulty */}
-                    <TableCell className="hidden md:table-cell">
-                      <span
-                        className={cn(
-                          "text-sm font-medium capitalize",
-                          DIFFICULTY_COLORS[q.difficulty] ??
-                            "text-muted-foreground"
-                        )}
-                      >
-                        {q.difficulty}
-                      </span>
-                    </TableCell>
-
-                    {/* Date */}
-                    <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                      {formatDate(q.created_at)}
-                    </TableCell>
-
-                    {/* Source link */}
-                    <TableCell className="text-right pr-4">
                       <a
                         href={q.source_post_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Post</span>
+                        <ExternalLink className="h-3 w-3" />
+                        View Post
                       </a>
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Expanded detail row */}
-                  {isOpen && (
-                    <TableRow
-                      key={`${q._id}-expanded`}
-                      className="border-border/40 bg-primary/5 hover:bg-primary/5"
-                    >
-                      <TableCell colSpan={7} className="py-4 px-6">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          {/* Full question */}
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-foreground/60 uppercase tracking-wider mb-1.5">
-                              Full Question
-                            </p>
-                            <p className="text-foreground/90 leading-relaxed">
-                              {q.question}
-                            </p>
-                          </div>
-
-                          {/* Tags + metadata */}
-                          <div className="flex flex-col gap-3 sm:w-56">
-                            {q.tags.length > 0 && (
-                              <div>
-                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                                  <Tag className="h-3 w-3" /> Tags
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {q.tags.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="px-2 py-0.5 rounded-md text-xs bg-muted/60 text-muted-foreground border border-border/40"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {q.company && (
-                              <div>
-                                <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                                  <Building2 className="h-3 w-3" /> Company
-                                </p>
-                                <p className="text-sm text-foreground/80">
-                                  {q.company}
-                                </p>
-                              </div>
-                            )}
-
-                            <a
-                              href={q.source_post_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors font-medium mt-auto"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              View original interview post
-                            </a>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </Fragment>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
-        <span>
-          Showing {(page - 1) * 20 + 1}–
-          {Math.min(page * 20, total)} of{" "}
-          <span className="font-medium text-foreground">{total}</span> questions
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            id="prev-page-btn"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-            className="px-3 py-1.5 rounded-lg border border-border/50 bg-card/50 hover:bg-muted/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            ← Prev
-          </button>
-          <span className="px-2 tabular-nums">
-            {page} / {Math.ceil(total / 20) || 1}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <span className="text-muted-foreground text-xs">
+            Showing {pageStart}–{pageEnd} of {total} questions
           </span>
-          <button
-            id="next-page-btn"
-            disabled={!hasMore}
-            onClick={() => onPageChange(page + 1)}
-            className="px-3 py-1.5 rounded-lg border border-border/50 bg-card/50 hover:bg-muted/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            Next →
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              const p = i + 1;
+              return (
+                <button
+                  key={p}
+                  onClick={() => onPageChange(p)}
+                  className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${
+                    p === page
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={!hasMore}
+              className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {/* Modal */}
+      {activeModal && (
+        <QuestionModal question={activeModal} onClose={() => setActiveModal(null)} />
+      )}
+    </>
   );
 }

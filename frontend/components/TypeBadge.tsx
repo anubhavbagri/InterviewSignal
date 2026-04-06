@@ -1,28 +1,5 @@
-"use client";
-
 import { QuestionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-const TYPE_CONFIG: Record<
-  QuestionType,
-  { label: string; className: string }
-> = {
-  DSA: {
-    label: "DSA",
-    className:
-      "bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25",
-  },
-  SYSTEM_DESIGN: {
-    label: "System Design",
-    className:
-      "bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25",
-  },
-  BEHAVIORAL: {
-    label: "Behavioral",
-    className:
-      "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25",
-  },
-};
 
 interface TypeBadgeProps {
   type: QuestionType;
@@ -30,16 +7,18 @@ interface TypeBadgeProps {
 }
 
 export function TypeBadge({ type, className }: TypeBadgeProps) {
-  const config = TYPE_CONFIG[type] ?? TYPE_CONFIG["DSA"];
+  const isCoding = type === "CODING";
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors cursor-default",
-        config.className,
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
+        isCoding
+          ? "bg-primary/15 text-primary border border-primary/30"
+          : "bg-violet-500/15 text-violet-400 border border-violet-500/30",
         className
       )}
     >
-      {config.label}
+      {isCoding ? "Coding" : "Design"}
     </span>
   );
 }

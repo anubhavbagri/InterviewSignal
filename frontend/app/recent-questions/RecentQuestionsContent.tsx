@@ -3,46 +3,53 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Question } from "@/lib/types";
-import { FilterBar } from "@/components/FilterBar";
+import { CompanySelector } from "@/components/CompanySelector";
 import { QuestionTable } from "@/components/QuestionTable";
-import { StatsBar } from "@/components/StatsBar";
-import { Zap, RefreshCw } from "lucide-react";
+import { Zap, Check, Database, Building2, RefreshCw } from "lucide-react";
 
 export function RecentQuestionsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const company = searchParams.get("company") || "";
-  const type = searchParams.get("type") || "";
-  const search = searchParams.get("search") || "";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [companies, setCompanies] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ totalQuestions: number; totalCompanies: number } | null>(null);
 
-  // Fetch companies once
+  // Fetch companies + stats once on mount
   useEffect(() => {
     fetch("/api/companies")
       .then((r) => r.json())
       .then((d) => setCompanies(d.data ?? []))
       .catch(() => { });
+
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((d) => setStats(d))
+      .catch(() => { });
   }, []);
 
-  // Fetch questions on filter/page change
+  // Fetch questions when company/page changes
   const fetchQuestions = useCallback(async () => {
+    if (!company) {
+      setQuestions([]);
+      setTotal(0);
+      setHasMore(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (company) params.set("company", company);
-      if (type) params.set("type", type);
-      if (search) params.set("search", search);
+      params.set("company", company);
       params.set("page", String(page));
-      params.set("limit", "20");
+      params.set("limit", "10");
 
       const res = await fetch(`/api/questions?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -50,19 +57,28 @@ export function RecentQuestionsContent() {
       setQuestions(data.data ?? []);
       setTotal(data.total ?? 0);
       setHasMore(data.hasMore ?? false);
-    } catch (e) {
-      setError("Failed to load questions. Is your MongoDB connected?");
+    } catch {
+      setError("Failed to load questions.");
     } finally {
       setLoading(false);
     }
-  }, [company, type, search, page]);
+  }, [company, page]);
 
   useEffect(() => {
     fetchQuestions();
   }, [fetchQuestions]);
 
+  const handleCompanySelect = (c: string) => {
+    if (c) {
+      router.push(`/recent-questions?company=${encodeURIComponent(c)}`);
+    } else {
+      router.push("/recent-questions");
+    }
+  };
+
   const handlePageChange = (p: number) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    if (company) params.set("company", company);
     params.set("page", String(p));
     router.push(`/recent-questions?${params.toString()}`, { scroll: false });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -70,15 +86,15 @@ export function RecentQuestionsContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Gradient background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-purple-500/5 rounded-full blur-[80px]" />
+      {/* Subtle ambient gradient */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-primary/5 rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-violet-500/5 rounded-full blur-[100px]" />
       </div>
 
       {/* Header */}
-      <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
@@ -87,91 +103,125 @@ export function RecentQuestionsContent() {
               Interview<span className="text-primary">Signal</span>
             </span>
           </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span className="hidden sm:inline">
-              Updated daily via LLM pipeline
-            </span>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live
-            </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        {/* Hero heading */}
-        <div className="space-y-3 text-center sm:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider">
-            <Zap className="h-3 w-3" />
-            AI-Extracted from Real Candidate Posts
-          </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
-            Real Interview Questions,{" "}
-            <span className="text-primary">Not Practice Problems</span>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-14 space-y-10">
+        {/* ── Hero ── */}
+        <div className="text-center space-y-4 max-w-3xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
+            Real Interview Questions,<br /><span className="text-primary">Not Practice Problems</span>
           </h1>
-          <p className="text-muted-foreground text-base sm:text-lg max-w-2xl">
-            Aggregated from real interview experiences on LeetCode Discuss. Extracted, structured, and deduplicated using GPT-4o.
+          <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
+            Curated from real candidate experiences — know{" "}
+            <strong className="text-foreground">exactly what companies are asking right now</strong>
+            , without digging through forums or paying for premium prep tool.
           </p>
+
+          {/* Bullet points */}
+          <ul className="mt-6 space-y-2.5 text-left inline-block text-sm sm:text-base">
+            {[
+              "Recently asked coding & system design questions",
+              "Company-specific & sorted by date",
+              "No fluff, no guesswork, no outdated problems",
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-muted-foreground">
+                <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                  <Check className="h-3 w-3 text-emerald-400" strokeWidth={2.5} />
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Stats */}
-        <StatsBar total={total} questions={questions} />
+        {/* ── Company Selector ── */}
+        <div className="flex flex-col items-center gap-3">
+          <CompanySelector
+            companies={companies}
+            selected={company}
+            onSelect={handleCompanySelect}
+          />
+          {!company && (
+            <p className="text-muted-foreground text-sm">
+              Please select a company to view recent questions
+            </p>
+          )}
+        </div>
 
-        {/* Filters */}
-        <FilterBar
-          companies={companies}
-          currentCompany={company}
-          currentType={type}
-          currentSearch={search}
-        />
+        {/* ── Questions section ── */}
+        {company && (
+          <div className="space-y-4">
+            {loading && (
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-14 rounded-xl bg-muted/30 animate-pulse"
+                    style={{ opacity: 1 - i * 0.12 }}
+                  />
+                ))}
+              </div>
+            )}
 
-        {/* Error state */}
-        {error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-red-400 text-sm flex items-center gap-3">
-            <span className="text-xl">⚠️</span>
-            <div>
-              <p className="font-semibold">Database not connected</p>
-              <p className="text-red-400/80 mt-0.5">{error}</p>
+            {error && !loading && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-red-400 text-sm flex items-center gap-3">
+                <span className="text-xl">⚠️</span>
+                <div>
+                  <p className="font-semibold">Could not load questions</p>
+                  <p className="text-red-400/80 mt-0.5">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && (
+              <QuestionTable
+                questions={questions}
+                total={total}
+                page={page}
+                hasMore={hasMore}
+                onPageChange={handlePageChange}
+              />
+            )}
+          </div>
+        )}
+
+        {/* ── Footer stats ── */}
+        {stats && (
+          <div className="border-t border-border/30 pt-10 flex flex-wrap items-center justify-center gap-10 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Database className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats.totalQuestions.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Real Interview Questions</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <Building2 className="h-5 w-5 text-emerald-400" />
+              </div>
+              <p className="text-2xl font-bold text-foreground">{stats.totalCompanies.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Companies</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                <RefreshCw className="h-5 w-5 text-violet-400" />
+              </div>
+              <p className="text-2xl font-bold text-foreground">Daily</p>
+              <p className="text-xs text-muted-foreground">Updated Frequently</p>
             </div>
           </div>
         )}
-
-        {/* Loading skeleton */}
-        {loading && !error && (
-          <div className="space-y-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-14 rounded-lg bg-muted/40 animate-pulse"
-                style={{ opacity: 1 - i * 0.1 }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Question table */}
-        {!loading && !error && (
-          <QuestionTable
-            questions={questions}
-            total={total}
-            page={page}
-            hasMore={hasMore}
-            onPageChange={handlePageChange}
-          />
-        )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/30 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            © {new Date().getFullYear()} InterviewSignal. Data sourced from
-            public LeetCode Discuss posts.
-          </span>
-          <span className="hidden sm:inline">
-            Built with Next.js · MongoDB · GPT-4o
-          </span>
+      <footer className="border-t border-border/30 mt-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between text-xs text-muted-foreground">
+          <span>© {new Date().getFullYear()} InterviewSignal. All rights reserved.</span>
+          <span className="hidden sm:inline">Built with Next.js</span>
         </div>
       </footer>
     </div>

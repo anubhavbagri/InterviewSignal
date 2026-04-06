@@ -36,52 +36,41 @@ RETRY_DELAY = 5.0       # seconds base delay for API retries
 # ─── System Prompt (exact as specified) ──────────────────────────────────────
 SYSTEM_PROMPT = """You are an expert technical interview data extraction engine.
 
-Your task is to extract structured interview questions from raw interview experience posts written by candidates.
-
-The input will be an unstructured text describing an interview process. The text may include noise, storytelling, irrelevant details, or incomplete information.
-
-You must carefully read and extract ONLY actual interview questions or clearly implied questions.
+Your task is to extract structured technical interview questions from raw interview experience posts written by candidates.
 
 ---
 
 ## STRICT INSTRUCTIONS
 
-1. Extract ONLY real interview questions asked during interviews.
-2. Ignore:
-   * candidate opinions
-   * preparation tips
-   * generic statements
-   * repeated content
-3. If a question is implied but clear, normalize it into a proper question format.
+1. Extract ONLY real technical interview questions asked during interviews.
+2. Ignore: opinions, preparation tips, generic statements, behavioral/HR questions.
+3. Normalize implied questions into a proper question format.
 4. Do NOT hallucinate or invent questions.
 5. If no valid questions are found, return an empty array.
 
 ---
 
-## CLASSIFICATION
+## CLASSIFICATION (EXACTLY TWO TYPES)
 
-For each question, classify into ONE:
+* "CODING" → algorithms, data structures, coding problems, LeetCode-style problems
+* "DESIGN" → system design, scalability, architecture, LLD, HLD, distributed systems
 
-* "DSA" → coding, algorithms, data structures
-* "SYSTEM_DESIGN" → scalability, architecture, distributed systems
-* "BEHAVIORAL" → HR, past experience, teamwork
+Do NOT include BEHAVIORAL questions. Skip them entirely.
 
 ---
 
 ## NORMALIZATION RULES
 
-* Convert statements into proper question form:
-  Example:
-  "they asked about LRU cache"
-  → "Design an LRU Cache"
-
-* Keep questions concise and standardized
+* Extract the concise problem title (e.g. "LRU Cache", "Median of Two Sorted Arrays")
+* Write a 1-2 sentence description of what the problem asks
+* Convert vague references into clear problem names:
+  Example: "they asked about LRU" → title: "LRU Cache"
 
 ---
 
 ## OUTPUT FORMAT (STRICT JSON)
 
-Return ONLY valid JSON. The response MUST be an object with a "results" key containing an array of objects (one for each input post), following this schema:
+Return ONLY valid JSON. The response MUST be an object with a "results" key:
 
 {
   "results": [
@@ -89,10 +78,12 @@ Return ONLY valid JSON. The response MUST be an object with a "results" key cont
       "company": "string or null",
       "questions": [
         {
-          "question": "string",
-          "type": "DSA | SYSTEM_DESIGN | BEHAVIORAL",
+          "title": "Concise problem title",
+          "description": "1-2 sentence description of what the problem asks.",
+          "type": "CODING | DESIGN",
           "tags": ["optional", "keywords"],
-          "difficulty": "easy | medium | hard | unknown"
+          "difficulty": "easy | medium | hard | unknown",
+          "problem_link": "https://leetcode.com/problems/... or null"
         }
       ]
     }
@@ -101,12 +92,11 @@ Return ONLY valid JSON. The response MUST be an object with a "results" key cont
 
 ---
 
-## TAGGING GUIDELINES
+## RULES FOR problem_link
 
-* Add relevant tags:
-  * DSA: array, graph, dp, tree, hashmap
-  * System Design: scalability, caching, database, load-balancing
-  * Behavioral: leadership, conflict, ownership
+* If the question is a well-known LeetCode problem, provide the exact URL.
+* If you are not 100% certain of the exact LeetCode URL, return null.
+* Do NOT guess or hallucinate URLs.
 
 ---
 
@@ -114,7 +104,7 @@ Return ONLY valid JSON. The response MUST be an object with a "results" key cont
 
 * If company not explicitly mentioned → return null
 * Remove duplicates
-* Limit to meaningful questions only"""
+* Limit to meaningful technical questions only"""
 
 
 # ─── Normalization & Hashing ─────────────────────────────────────────────────
@@ -199,7 +189,7 @@ def call_openai(posts_batch: list[dict]) -> Optional[list[dict]]:
 
 # ─── Saving Questions ─────────────────────────────────────────────────────────
 
-def save_questions(result: dict, source_post_url: str, fallback_company: Optional[str]) -> int:
+def save_questions(result: dict, source_post_url: str, fallback_company: Optional[str], posted_at: Optional[str] = None) -> int:
     """Upsert extracted questions into MongoDB; return count of new questions saved."""
     q_col = get_questions_collection()
     questions = result.get("questions", [])
@@ -207,20 +197,23 @@ def save_questions(result: dict, source_post_url: str, fallback_company: Optiona
     saved = 0
 
     for q in questions:
-        question_text = q.get("question", "").strip()
-        if not question_text or len(question_text) < 5:
+        title = (q.get("title") or q.get("question", "")).strip()
+        if not title or len(title) < 3:
             continue
 
-        q_hash = compute_hash(question_text)
+        q_hash = compute_hash(title)
 
         doc = {
             "company": company,
-            "question": question_text,
-            "type": q.get("type", "DSA"),
+            "title": title,
+            "description": q.get("description") or None,
+            "type": q.get("type", "CODING"),
             "tags": q.get("tags", []),
             "difficulty": q.get("difficulty", "unknown"),
+            "problem_link": q.get("problem_link") or None,
             "source_post_url": source_post_url,
             "question_hash": q_hash,
+            "posted_at": posted_at,
             "created_at": datetime.now(timezone.utc),
         }
 
@@ -250,7 +243,7 @@ def process_batch(posts: list[dict]) -> tuple[int, int]:
         if not isinstance(result, dict):
             result = {}
 
-        n_saved = save_questions(result, post["post_url"], post.get("company"))
+        n_saved = save_questions(result, post["post_url"], post.get("company"), post.get("posted_at"))
         total_questions += n_saved
 
         # Mark post as processed
