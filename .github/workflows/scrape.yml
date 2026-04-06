@@ -5,13 +5,14 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '0 2 * * *'   # ~2am UTC daily (actual run randomized by up to 2h)
+    - cron: '0 14 * * 3'  # ~2pm UTC every Wednesday (mid-week refresh)
   workflow_dispatch:
 
 jobs:
   scrape-and-process:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     env:
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -34,14 +35,15 @@ jobs:
         run: |
           pip install -r scraper/requirements.txt
 
-      - name: Install Playwright browsers
+      - name: Random delay to avoid predictable scraping pattern
         run: |
-          playwright install chromium
-          playwright install-deps chromium
+          DELAY=$((RANDOM % 7200))
+          echo "Sleeping for ${DELAY}s before scraping…"
+          sleep $DELAY
 
-      - name: Test GraphQL
+      - name: Run scraper
         run: |
-          python3 scraper/test_graphql.py 2>&1 | head -200
+          python3 scraper/scraper.py
         continue-on-error: false
 
       - name: Run LLM processor
