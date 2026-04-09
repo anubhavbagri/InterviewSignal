@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Question } from "@/lib/types";
 import { CompanySelector } from "@/components/CompanySelector";
 import { QuestionTable } from "@/components/QuestionTable";
@@ -21,6 +22,16 @@ export function RecentQuestionsContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{ totalQuestions: number; totalCompanies: number } | null>(null);
+
+  // Clear query params on hard browser refresh
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.performance) {
+      const navEntries = window.performance.getEntriesByType("navigation");
+      if (navEntries.length > 0 && (navEntries[0] as PerformanceNavigationTiming).type === "reload") {
+        router.push("/recent-questions");
+      }
+    }
+  }, [router]);
 
   // Fetch companies + stats once on mount
   useEffect(() => {
@@ -95,14 +106,14 @@ export function RecentQuestionsContent() {
       {/* ── Header ── */}
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
         <div className="w-full px-6 lg:px-10 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link href="/recent-questions" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="font-bold text-lg tracking-tight">
               Interview<span className="text-primary">Signal</span>
             </span>
-          </div>
+          </Link>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Updated daily

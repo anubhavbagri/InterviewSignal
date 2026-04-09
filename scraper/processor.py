@@ -45,10 +45,11 @@ Your task is to extract structured technical interview questions from raw interv
 Carefully read the post and extract ONLY real technical interview questions asked during interviews.
 
 Rules:
-* Extract ONLY coding and system design questions. SKIP behavioral/HR questions entirely.
+* Extract coding, system design, AND conceptual questions. SKIP behavioral/HR questions entirely.
 * Normalize vague references into standard problem names:
   - "they asked about LRU" → "LRU Cache"
   - "binary search variation" → "Search in Rotated Sorted Array"
+  - "how garbage collection works" → "Understanding JVM Garbage Collection"
 * Do NOT hallucinate or invent questions not present in the post.
 * If no valid technical questions are found, return an empty array.
 
@@ -59,36 +60,35 @@ Rules:
 For every extracted question, you MUST do the following:
 
 ### 2a. Company Name
-* Use ONLY the core company name. Strip all region/location/division suffixes.
-* Examples: "Amazon India" → "Amazon", "Google Bangalore" → "Google", "Meta NYC" → "Meta"
+* Use ONLY the core, normalized company name with exact standard capitalization. Strip all region/location/division suffixes.
+* IMPORTANT NORMALIZATION RULES:
+  - "Linkedin" or "linkedIn" → "LinkedIn"
+  - "Goldman" or "GS" → "Goldman Sachs"
+  - "JPMorgan" or "JPMC" → "JPMorgan Chase"
+  - "Amazon India" → "Amazon", "Google Bangalore" → "Google"
+  - "Facebook" → "Meta"
+* Ensure case is perfectly standard for UI presentation.
 
 ### 2b. Title
-* Use the canonical, well-known name of the problem.
-* Examples: "LRU Cache", "Median of Two Sorted Arrays", "Design Rate Limiter"
+* Use the canonical, well-known name of the problem or concept.
+* Examples: "LRU Cache", "Median of Two Sorted Arrays", "Design Rate Limiter", "CAP Theorem"
 
 ### 2c. Description
-* Write 2-3 clear sentences describing what the problem asks. Be specific and technical.
+* Write 2-3 clear sentences describing what the problem asks or the concept involves. Be specific and technical.
 * Example: "Given a data structure that follows LRU eviction policy, implement get and put operations. Both operations must run in O(1) time complexity using a combination of a hashmap and doubly linked list."
 
 ### 2d. Problem Link (MANDATORY — you MUST provide a URL)
-You MUST always provide a direct URL. null is only acceptable if NO known resource exists anywhere.
+You MUST always provide a direct URL using your vast internal knowledge base. null is only acceptable if NO known resource exists anywhere.
 
-For CODING questions, check in this order:
-1. **LeetCode** — https://leetcode.com/problems/{slug}/
-   Example: https://leetcode.com/problems/lru-cache/
-2. **GeeksForGeeks** — https://www.geeksforgeeks.org/{problem-slug}/
-   Example: https://www.geeksforgeeks.org/lru-cache-implementation/
-3. **HackerRank** — https://www.hackerrank.com/challenges/{slug}/
-4. **CodeSignal / Codeforces** — use their direct problem URL
+For CODING questions:
+1. First, search your knowledge base for an exact match on LeetCode (standard or premium).
+2. If not available on LeetCode, act as a web search and return the closest/similar coding problem link available on the web from any reputable platform (e.g., GeeksForGeeks, HackerRank, CodingNinjas, InterviewBit, algo.monster).
 
-For DESIGN questions, check in this order:
-1. **HelloInterview** — https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction
-   Use the most specific page on HelloInterview if available.
-2. **GitHub System Design Primer** — https://github.com/donnemartin/system-design-primer
-   Link to specific section hash if applicable, e.g. #design-a-url-shortener
-3. **GeeksForGeeks System Design** — https://www.geeksforgeeks.org/system-design-{topic}/
-4. **High Scalability blog** — http://highscalability.com/
-5. Any other directly relevant resource you know exists.
+For DESIGN questions:
+1. Do a simulated web search in your knowledge base and return the most similar/exact/closest system design question link available on the web (e.g., HelloInterview, GeeksForGeeks, algo.monster, interviewready.io, algomaster.io, codewitharyan.com/system-design).
+
+For CONCEPTUAL questions:
+1. Provide a direct link to a high-quality web article or resource preferably GeeksForGeeks or InterviewBit(e.g., official docs, reputable engineering blogs, medium article) that thoroughly explains the concept.
 
 Rules:
 * Use your training knowledge to provide a correct, real URL.
@@ -99,6 +99,7 @@ Rules:
 ### 2e. Classification
 * "CODING" → algorithms, data structures, implementation, LeetCode-style
 * "DESIGN" → system design, LLD, HLD, scalability, architecture
+* "CONCEPTUAL" → conceptual knowledge, db internals, language specific theory, OS concepts
 
 ---
 
@@ -114,7 +115,7 @@ Return ONLY valid JSON. The response MUST be an object with a "results" key cont
         {
           "title": "Canonical problem title",
           "description": "2-3 sentence technical description of the problem.",
-          "type": "CODING | DESIGN",
+          "type": "CODING | DESIGN | CONCEPTUAL",
           "tags": ["array", "dp", "graph", etc.],
           "difficulty": "easy | medium | hard | unknown",
           "problem_link": "https://... (required, null only if truly unknown)"

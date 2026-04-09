@@ -33,7 +33,7 @@ GRAPHQL_URL   = f"{BASE_URL}/graphql"
 KEYWORDS      = [
     "round", "problem solving", "system design", "LLD", "HLD",
     "interview", "experience", "onsite", "phone screen",
-    "online assessment", "behavioral",
+    "online assessment", "behavioral", "OA", "DSA"
 ]
 MAX_PAGES      = 10
 PAGE_SIZE      = 20
@@ -52,17 +52,7 @@ HEADERS = {
     "Origin":  "https://leetcode.com",
 }
 
-COMPANY_PATTERNS = [
-    r"\b(google|amazon|meta|facebook|apple|microsoft|netflix|uber|lyft|airbnb|"
-    r"stripe|square|twitter|linkedin|salesforce|adobe|oracle|ibm|intel|nvidia|"
-    r"bloomberg|citadel|two sigma|jane street|palantir|bytedance|tiktok|"
-    r"doordash|coinbase|robinhood|atlassian|shopify|dropbox|pinterest|snap|"
-    r"spotify|databricks|snowflake|confluent|zomato|swiggy|phonepe|paytm|"
-    r"flipkart|meesho|razorpay|freshworks|zoho|infosys|wipro|tcs|"
-    r"hcl|accenture|capgemini|deloitte|jpmorgan|goldman|morgan stanley|"
-    r"optum|united health|walmart|target|instacart|lyft)\b"
-]
-COMPANY_RE = re.compile("|".join(COMPANY_PATTERNS), re.IGNORECASE)
+# Regex patterns removed in favor of pure LLM company extraction.
 
 
 # ─── GraphQL Query ────────────────────────────────────────────────────────────
@@ -108,9 +98,23 @@ query categoryTopicList(
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-def extract_company(text: str) -> Optional[str]:
-    match = COMPANY_RE.search(text)
-    return match.group(0).title() if match else None
+def extract_company(title: str, tags: list, content: str) -> Optional[str]:
+    # 1. Check tags array if LeetCode provided a tag that looks like a company
+    ignored_slugs = {
+        "interview", "compensation", "system-design", "online-assessment", "onsite",
+        "dynamic-programming", "array", "string", "hash-table", "binary-search",
+        "math", "sorting", "greedy", "depth-first-search", "database", "design",
+        "behavioral", "oa", "dsa", "machine-learning", "front-end", "back-end"
+    }
+    for tag in tags:
+        slug = tag.get("slug", "").lower()
+        if slug and slug not in ignored_slugs and len(slug) > 1:
+            # We assume unrecognized tags without generic keywords are usually companies
+            return tag.get("name", "").title()
+
+    # No fallback heuristic needed. The LLM processor will read the content
+    # and accurately extract normalized company names (e.g. Goldman Sachs, LinkedIn).
+    return None
 
 
 def is_relevant(title: str, content: str = "") -> bool:
@@ -167,7 +171,8 @@ def build_post_doc(node: dict) -> Optional[dict]:
 
     topic_id = node["id"]
     post_url  = f"{BASE_URL}/discuss/post/{topic_id}/"
-    company   = extract_company(title) or extract_company(content[:500])
+    tags      = node.get("tags") or []
+    company   = extract_company(title, tags, content)
 
     creation_ts = post.get("creationDate")
     if creation_ts:
@@ -192,11 +197,19 @@ def main():
     ensure_indexes()
     col = get_raw_posts_collection()
 
-    total_new     = 0
-    total_skipped = 0
+    total_new        = 0
+    total_skipped    = 0
+    total_irrelevant = 0
 
-    for page_num in range(1, MAX_PAGES + 1):
-        print(f"\n📄 Fetching page {page_num} (skip={( page_num - 1) * PAGE_SIZE})…")
+    page_num = 1
+    last_empty_page = 0
+    LIMIT_BEYOND_EMPTY = 10
+
+    print(f"🚀 Starting dynamic scraper (window: last empty page + {LIMIT_BEYOND_EMPTY})...")
+
+    # Keep scraping as long as we are within 10 pages of the last completely skipped page
+    while page_num <= last_empty_page + LIMIT_BEYOND_EMPTY:
+        print(f"\n📄 Fetching page {page_num} (skip={(page_num - 1) * PAGE_SIZE})…")
         edges = fetch_topic_list(page_num)
 
         if not edges:
@@ -204,7 +217,6 @@ def main():
             break
 
         page_new = 0
-        all_seen = True
 
         for edge in edges:
             node     = edge["node"]
@@ -216,9 +228,9 @@ def main():
                 total_skipped += 1
                 continue
 
-            all_seen = False
             doc = build_post_doc(node)
             if doc is None:
+                total_irrelevant += 1
                 continue
 
             try:
@@ -229,14 +241,14 @@ def main():
             except DuplicateKeyError:
                 total_skipped += 1
 
-        # If every post on this page was already in DB, stop early
-        if all_seen:
-            print("  All posts on this page already seen — stopping early.")
-            break
+        if page_new == 0:
+            last_empty_page = max(last_empty_page, page_num)
+            print(f"  No new posts found on page {page_num}. Sliding limit to {last_empty_page + LIMIT_BEYOND_EMPTY}.")
 
+        page_num += 1
         time.sleep(PAGE_DELAY)
 
-    print(f"\n🎉 Done! New posts: {total_new}, Skipped (existing): {total_skipped}")
+    print(f"\n🎉 Done! New posts: {total_new}, Skipped (existing): {total_skipped}, Ignored (irrelevant): {total_irrelevant}")
 
 
 if __name__ == "__main__":

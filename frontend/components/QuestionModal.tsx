@@ -50,7 +50,7 @@ export function QuestionModal({ question, onClose }: QuestionModalProps) {
         {/* Problem link — always shown */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Problem Link:
+            {question.type === "CONCEPTUAL" ? "Article Link:" : "Problem Link:"}
           </p>
           <a
             href={question.problem_link ?? question.source_post_url}
@@ -59,7 +59,7 @@ export function QuestionModal({ question, onClose }: QuestionModalProps) {
             className="inline-flex items-center gap-1.5 text-sm text-amber-400 hover:text-amber-300 font-medium transition-colors"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            View Problem
+            {question.type === "CONCEPTUAL" ? "View Article" : "View Problem"}
           </a>
         </div>
 

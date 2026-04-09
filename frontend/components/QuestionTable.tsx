@@ -92,7 +92,7 @@ export function QuestionTable({ questions, total, page, hasMore, onPageChange }:
                   className={BTN_AMBER}
                 >
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  View Problem
+                  {q.type === "CONCEPTUAL" ? "View Article" : "View Problem"}
                 </a>
                 <a
                   href={q.source_post_url}
@@ -152,7 +152,7 @@ export function QuestionTable({ questions, total, page, hasMore, onPageChange }:
                         className={BTN_AMBER}
                       >
                         <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                        View Problem
+                        {q.type === "CONCEPTUAL" ? "View Article" : "View Problem"}
                       </a>
                       <a
                         href={q.source_post_url}

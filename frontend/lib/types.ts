@@ -1,6 +1,6 @@
 // lib/types.ts — Shared TypeScript interfaces for InterviewSignal
 
-export type QuestionType = "CODING" | "DESIGN";
+export type QuestionType = "CODING" | "DESIGN" | "CONCEPTUAL";
 export type Difficulty = "easy" | "medium" | "hard" | "unknown";
 
 export interface Question {
