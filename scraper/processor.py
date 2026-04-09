@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
+import requests
 from openai import OpenAI
 from pymongo.errors import DuplicateKeyError
 
@@ -60,22 +61,30 @@ Rules:
 For every extracted question, you MUST do the following:
 
 ### 2a. Company Name
-* Use ONLY the core, normalized company name with exact standard capitalization. Strip all region/location/division suffixes.
-* IMPORTANT NORMALIZATION RULES:
+* The company field MUST be the name of a REAL, WELL-KNOWN TECH/BUSINESS COMPANY that is mentioned as the interviewing/hiring company in the post.
+* IMPORTANT: Do NOT put any of the following in the company field:
+  - Programming concepts (e.g. "Graph", "Immutable", "Recursion")
+  - Data structures (e.g. "Array", "HashMap", "Tree")
+  - Technologies (e.g. "Docker", "Kubernetes", "REST API")
+  - Question topics, tags, or categories of any kind
+* NORMALIZATION RULES (apply exact casing as used in tech industry):
   - "Linkedin" or "linkedIn" → "LinkedIn"
   - "Goldman" or "GS" → "Goldman Sachs"
   - "JPMorgan" or "JPMC" → "JPMorgan Chase"
   - "Amazon India" → "Amazon", "Google Bangalore" → "Google"
   - "Facebook" → "Meta"
-* Ensure case is perfectly standard for UI presentation.
+  - "TCS" or "Tcs Prime" → "TCS"
+  - "Phonepe" or "Phone pe" → "PhonePe"
+* If UNSURE or the company is not explicitly named → return null.
 
 ### 2b. Title
 * Use the canonical, well-known name of the problem or concept.
 * Examples: "LRU Cache", "Median of Two Sorted Arrays", "Design Rate Limiter", "CAP Theorem"
 
 ### 2c. Description
-* Write 2-3 clear sentences describing what the problem asks or the concept involves. Be specific and technical.
-* Example: "Given a data structure that follows LRU eviction policy, implement get and put operations. Both operations must run in O(1) time complexity using a combination of a hashmap and doubly linked list."
+* For CODING and DESIGN questions: Write 2-3 clear sentences describing what the problem asks. Be specific and technical.
+  - Example: "Given a data structure that follows LRU eviction policy, implement get and put operations in O(1) time."
+* For CONCEPTUAL questions: Extract and use the EXACT relevant explanation or description from the original post content — do NOT paraphrase or generate your own text. Copy the most relevant sentences directly from the post.
 
 ### 2d. Problem Link (MANDATORY — you MUST provide a URL)
 You MUST always provide a direct URL using your vast internal knowledge base. null is only acceptable if NO known resource exists anywhere.
@@ -97,9 +106,11 @@ Rules:
 * Return null ONLY for completely obscure questions with no online resource anywhere.
 
 ### 2e. Classification
-* "CODING" → algorithms, data structures, implementation, LeetCode-style
-* "DESIGN" → system design, LLD, HLD, scalability, architecture
-* "CONCEPTUAL" → conceptual knowledge, db internals, language specific theory, OS concepts
+* "CODING" → algorithmic problems, data structures, implementation, LeetCode-style DSA problems (e.g. "Two Sum", "LRU Cache", "Binary Search")
+* "DESIGN" → system design, LLD (Low Level Design), HLD (High Level Design), scalability, distributed systems architecture
+* "CONCEPTUAL" → conceptual theory questions, language-specific internals, OS concepts, database internals, networking, runtime behavior (e.g. "How does GC work?", "Explain CAP theorem", "What is DDL vs DML?", "REST API concepts")
+
+⚠️ IMPORTANT: If a question is about a concept or theory (not a specific coding problem to solve), classify it as CONCEPTUAL — NOT CODING.
 
 ---
 
@@ -129,7 +140,7 @@ Return ONLY valid JSON. The response MUST be an object with a "results" key cont
 
 ## EDGE CASES
 
-* If company not explicitly mentioned → "company": null
+* If company not explicitly mentioned as the HIRING company → "company": null (never put concept names here)
 * Remove exact duplicates within a post
 * Maximum 10 questions per post
 * Limit to meaningful technical questions only"""
@@ -215,6 +226,42 @@ def call_openai(posts_batch: list[dict]) -> Optional[list[dict]]:
     return None
 
 
+# ─── Tavily Fallback ─────────────────────────────────────────────────────────
+
+def search_tavily(title: str, q_type: str) -> Optional[str]:
+    """Fallback search if GPT cannot find a valid problem link."""
+    api_key = os.environ.get("TAVILY_API_KEY")
+    if not api_key:
+        return None
+        
+    query = title
+    if q_type == "CODING":
+        query = f"(site:leetcode.com OR site:geeksforgeeks.org OR site:hackerrank.com OR site:codingninjas.com OR site:interviewbit.com OR site:algo.monster) {title} coding problem"
+    elif q_type == "DESIGN":
+        query = f"(site:hellointerview.com OR site:geeksforgeeks.org OR site:algo.monster OR site:interviewready.io OR site:algomaster.io OR site:codewitharyan.com) system design {title}"
+    elif q_type == "CONCEPTUAL":
+        query = f"(site:geeksforgeeks.org OR site:interviewbit.com OR site:medium.com) {title} explanation"
+
+    try:
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": 1,
+            },
+            timeout=10
+        )
+        if resp.status_code == 200:
+            results = resp.json().get("results", [])
+            if results:
+                return results[0].get("url")
+    except Exception as e:
+        print(f"  ⚠️ Tavily search failed for '{title}': {e}")
+    return None
+
+
 # ─── Saving Questions ─────────────────────────────────────────────────────────
 
 def save_questions(result: dict, source_post_url: str, fallback_company: Optional[str], posted_at: Optional[str] = None) -> int:
@@ -230,6 +277,12 @@ def save_questions(result: dict, source_post_url: str, fallback_company: Optiona
             continue
 
         q_hash = compute_hash(title)
+        
+        problem_link = q.get("problem_link")
+        if not problem_link or str(problem_link).lower() == "null":
+            tavily_link = search_tavily(title, q.get("type", "CODING"))
+            if tavily_link:
+                problem_link = tavily_link
 
         doc = {
             "company": company,
@@ -238,7 +291,7 @@ def save_questions(result: dict, source_post_url: str, fallback_company: Optiona
             "type": q.get("type", "CODING"),
             "tags": q.get("tags", []),
             "difficulty": q.get("difficulty", "unknown"),
-            "problem_link": q.get("problem_link") or None,
+            "problem_link": problem_link or None,
             "source_post_url": source_post_url,
             "question_hash": q_hash,
             "posted_at": posted_at,

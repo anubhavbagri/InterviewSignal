@@ -32,6 +32,18 @@ export function QuestionTable({ questions, total, page, hasMore, onPageChange }:
   const pageStart = (page - 1) * 10 + 1;
   const pageEnd = Math.min(page * 10, total);
 
+  // Dynamic sliding window of up to 5 buttons
+  let startPage = Math.max(1, page - 2);
+  let endPage = startPage + 4;
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - 4);
+  }
+  const visiblePages = Array.from(
+    { length: Math.max(0, endPage - startPage + 1) },
+    (_, i) => startPage + i
+  );
+
   if (questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -186,8 +198,7 @@ export function QuestionTable({ questions, total, page, hasMore, onPageChange }:
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-              const p = i + 1;
+            {visiblePages.map((p) => {
               return (
                 <button
                   key={p}

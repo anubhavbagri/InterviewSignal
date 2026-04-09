@@ -12,7 +12,7 @@ InterviewSignal scrapes interview experience posts from LeetCode Discuss via the
 [GraphQL Scraper (Python + requests)]
         ↓  cron / push to scraper/ (GitHub Actions)
 [MongoDB Atlas — raw_posts]
-        ↓  LLM batch processor (OpenAI)
+        ↓  LLM batch processor (OpenAI) + Tavily Fallback Search
 [MongoDB Atlas — questions]
         ↓
 [Next.js API Routes]
@@ -43,14 +43,15 @@ InterviewSignal/
 │   │   ├── CompanySelector.tsx        # Searchable dropdown
 │   │   ├── QuestionTable.tsx          # Table (desktop) + cards (mobile)
 │   │   ├── QuestionModal.tsx          # Description + links modal
-│   │   └── TypeBadge.tsx              # CODING / DESIGN badge
+│   │   └── TypeBadge.tsx              # CODING / DESIGN / CONCEPTUAL badge
 │   └── lib/
 │       ├── mongodb.ts                 # Singleton MongoClient
 │       ├── types.ts                   # Shared TypeScript interfaces
 │       └── utils.ts
 ├── scraper/
 │   ├── scraper.py                     # GraphQL HTTP scraper (no browser)
-│   ├── processor.py                   # OpenAI LLM batch processor
+│   ├── processor.py                   # OpenAI LLM batch processor + Tavily Integration
+│   ├── manual_company_scraper.py      # Interactive CLI scraper for specific companies
 │   ├── db.py                          # MongoDB connection + indexes
 │   ├── .env.example
 │   └── requirements.txt
@@ -81,7 +82,7 @@ There are **two** `.env` files — one per subsystem. There is no root-level env
 | File | Used by | Variables |
 |------|---------|-----------|
 | `frontend/.env.local` | Next.js | `MONGODB_URI`, `MONGODB_DB_NAME` |
-| `scraper/.env` | Python scripts | `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY`, `AI_MODEL` |
+| `scraper/.env` | Python scripts | `MONGODB_URI`, `MONGODB_DB_NAME`, `OPENAI_API_KEY`, `AI_MODEL`, `TAVILY_API_KEY` |
 
 ### 1. MongoDB Atlas
 
@@ -120,6 +121,9 @@ python scraper.py
 
 # Step 2: Extract & structure questions via GPT → questions collection
 python processor.py
+
+# Alternative: Fetch & process a specific company interactively
+python manual_company_scraper.py
 ```
 
 ---
@@ -154,6 +158,7 @@ Add these secrets to your GitHub repo (`Settings → Secrets → Actions`):
 | `MONGODB_DB_NAME` | `interviewsignal` |
 | `OPENAI_API_KEY` | Your OpenAI key |
 | `AI_MODEL` | e.g. `gpt-4o-mini` |
+| `TAVILY_API_KEY` | Your Tavily Search API key |
 
 The workflow runs on two schedules with a randomized delay (up to 30 min) to avoid predictable scraping patterns:
 
@@ -202,10 +207,10 @@ question_hash = sha256(lowercase(strip(remove_punctuation(title))))
 | `company` | string \| null | normalized — no region suffix |
 | `title` | string | canonical problem name |
 | `description` | string \| null | 2–3 sentence technical description |
-| `type` | `CODING` \| `DESIGN` | |
+| `type` | `CODING` \| `DESIGN` \| `CONCEPTUAL` | |
 | `tags` | string[] | |
 | `difficulty` | `easy` \| `medium` \| `hard` \| `unknown` | |
-| `problem_link` | string \| null | LeetCode / GFG / HelloInterview / GitHub |
+| `problem_link` | string \| null | Direct linking to articles or reputable prep sites |
 | `source_post_url` | string | link to original LeetCode Discuss post |
 | `question_hash` | string | unique index |
 | `posted_at` | string \| null | |

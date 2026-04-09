@@ -20,7 +20,7 @@ export function TypeBadge({ type, className }: TypeBadgeProps) {
       label = "Design";
       break;
     case "CONCEPTUAL":
-      colorClass = "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30";
+      colorClass = "bg-orange-500/15 text-orange-500 border border-orange-500/30";
       label = "Conceptual";
       break;
   }

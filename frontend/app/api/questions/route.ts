@@ -54,9 +54,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function normalizeType(type: string): "CODING" | "DESIGN" {
+function normalizeType(type: string): "CODING" | "DESIGN" | "CONCEPTUAL" {
   if (!type) return "CODING";
-  const t = type.toUpperCase();
-  if (t === "SYSTEM_DESIGN" || t === "DESIGN" || t === "LLD" || t === "HLD") return "DESIGN";
-  return "CODING"; // DSA, BEHAVIORAL, unknown → CODING
+  return type.toUpperCase() as "CODING" | "DESIGN" | "CONCEPTUAL"; // DSA, BEHAVIORAL, unknown → CODING
 }

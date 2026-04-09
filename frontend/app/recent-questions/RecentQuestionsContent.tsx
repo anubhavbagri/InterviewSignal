@@ -116,7 +116,7 @@ export function RecentQuestionsContent() {
           </Link>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Updated daily
+            Updated frequently
           </div>
         </div>
       </header>
@@ -245,7 +245,7 @@ export function RecentQuestionsContent() {
       <footer className="border-t border-border/30">
         <div className="w-full px-6 lg:px-10 h-14 flex items-center justify-between text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} InterviewSignal. All rights reserved.</span>
-          <span className="hidden sm:inline">Built with Next.js</span>
+          <span className="hidden sm:inline">Data from Leetcode Discuss, more sources coming soon!</span>
         </div>
       </footer>
     </div>
