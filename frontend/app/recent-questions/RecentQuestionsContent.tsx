@@ -25,10 +25,21 @@ export function RecentQuestionsContent() {
 
   // Clear query params on hard browser refresh
   useEffect(() => {
-    if (typeof window !== "undefined" && window.performance) {
-      const navEntries = window.performance.getEntriesByType("navigation");
-      if (navEntries.length > 0 && (navEntries[0] as PerformanceNavigationTiming).type === "reload") {
-        router.push("/recent-questions");
+    if (typeof window !== "undefined") {
+      let isReload = false;
+      if (window.performance && window.performance.navigation) {
+        // Fallback for older browsers
+        isReload = window.performance.navigation.type === 1;
+      }
+      if (window.performance && window.performance.getEntriesByType) {
+        const navEntries = window.performance.getEntriesByType("navigation");
+        if (navEntries.length > 0) {
+          isReload = (navEntries[0] as PerformanceNavigationTiming).type === "reload";
+        }
+      }
+
+      if (isReload) {
+        router.replace("/recent-questions");
       }
     }
   }, [router]);

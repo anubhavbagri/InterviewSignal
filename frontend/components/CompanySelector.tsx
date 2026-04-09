@@ -13,8 +13,14 @@ interface CompanySelectorProps {
 export function CompanySelector({ companies, selected, onSelect }: CompanySelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // Optimistic UI state so the cross button and dropdown disappear instantly
+  const [internalSelected, setInternalSelected] = useState(selected);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setInternalSelected(selected);
+  }, [selected]);
 
   const filtered = companies.filter((c) => c.toLowerCase().includes(search.toLowerCase()));
 
@@ -38,6 +44,7 @@ export function CompanySelector({ companies, selected, onSelect }: CompanySelect
   }, [open]);
 
   const handleSelect = (company: string) => {
+    setInternalSelected(company);
     onSelect(company);
     setOpen(false);
     setSearch("");
@@ -45,6 +52,8 @@ export function CompanySelector({ companies, selected, onSelect }: CompanySelect
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    setInternalSelected("");
     onSelect("");
     setOpen(false);
   };
@@ -61,11 +70,11 @@ export function CompanySelector({ companies, selected, onSelect }: CompanySelect
           open && "border-primary/60 ring-2 ring-primary/20"
         )}
       >
-        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
-          {selected || "Select Company"}
+        <span className={internalSelected ? "text-foreground" : "text-muted-foreground"}>
+          {internalSelected || "Select Company"}
         </span>
         <div className="flex items-center gap-1">
-          {selected && (
+          {internalSelected && (
             <span
               onClick={handleClear}
               className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
